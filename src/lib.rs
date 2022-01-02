@@ -1,5 +1,6 @@
 mod parser;
 use parser::Parser;
+use std::fmt;
 
 #[derive(Clone, Debug)]
 enum Token {
@@ -79,5 +80,20 @@ impl CombinatoryTerm {
             return self;
         }
         self.evaluate()
+    }
+}
+
+impl fmt::Display for CombinatoryTerm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.tokens
+            .iter()
+            .rev()
+            .map(|token| match token {
+                Token::S => write!(f, "S"),
+                Token::K => write!(f, "K"),
+                Token::I => write!(f, "I"),
+                Token::NestedTerm(term) => write!(f, "({})", term),
+            })
+            .collect::<Result<_, _>>()
     }
 }
