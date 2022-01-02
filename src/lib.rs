@@ -14,21 +14,28 @@ enum Token {
 pub struct CombinatoryTerm {
     // For efficiency reasons, tokens are stored in reverse order
     tokens: Vec<Token>,
+    verbose: bool,
 }
 
 impl CombinatoryTerm {
-    pub fn new(token_seq: &str) -> Result<CombinatoryTerm, String> {
-        let parser = Parser::new(token_seq);
+    pub fn new(token_seq: &str, verbose: bool) -> Result<CombinatoryTerm, String> {
+        let parser = Parser::new(token_seq, verbose);
         let tokens = parser.parse(false)?;
-        Ok(CombinatoryTerm { tokens })
+        Ok(CombinatoryTerm { tokens, verbose })
     }
 
     pub fn evaluate(&mut self) {
-        if self.tokens.is_empty() {
-            return;
+        if self.verbose {
+            println!("{}", self);
         }
-        let token = self.tokens.pop().unwrap();
-        self.apply_next_token(token)
+        self.evaluate_impl();
+    }
+
+    fn evaluate_impl(&mut self) {
+        if !self.tokens.is_empty() {
+            let token = self.tokens.pop().unwrap();
+            self.apply_next_token(token);
+        }
     }
 
     fn apply_next_token(&mut self, token: Token) {
@@ -36,7 +43,7 @@ impl CombinatoryTerm {
             Token::S => self.evaluate_s(),
             Token::K => self.evaluate_k(),
             Token::I => self.evaluate_i(),
-            Token::NestedTerm(mut inner_expr) => inner_expr.evaluate(),
+            Token::NestedTerm(mut inner_expr) => inner_expr.evaluate_impl(),
         }
     }
 
@@ -53,6 +60,7 @@ impl CombinatoryTerm {
 
         let inner_term = CombinatoryTerm {
             tokens: vec![z.clone(), y],
+            verbose: self.verbose,
         };
 
         self.tokens.push(Token::NestedTerm(inner_term));
