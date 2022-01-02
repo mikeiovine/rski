@@ -28,10 +28,6 @@ impl CombinatoryTerm {
         if self.verbose {
             println!("{}", self);
         }
-        self.evaluate_impl();
-    }
-
-    fn evaluate_impl(&mut self) {
         if !self.tokens.is_empty() {
             let token = self.tokens.pop().unwrap();
             self.apply_next_token(token);
@@ -43,7 +39,10 @@ impl CombinatoryTerm {
             Token::S => self.evaluate_s(),
             Token::K => self.evaluate_k(),
             Token::I => self.evaluate_i(),
-            Token::NestedTerm(mut inner_expr) => inner_expr.evaluate_impl(),
+            Token::NestedTerm(mut inner_expr) => {
+                self.tokens.append(&mut inner_expr.tokens);
+                self.evaluate();
+            }
         }
     }
 
