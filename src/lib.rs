@@ -23,28 +23,28 @@ impl CombinatoryTerm {
         Ok(CombinatoryTerm { tokens })
     }
 
-    pub fn evaluate(mut self) -> CombinatoryTerm {
+    pub fn evaluate(&mut self) {
         if self.tokens.is_empty() {
-            return self;
+            return;
         }
         let token = self.tokens.pop().unwrap();
         self.apply_next_token(token)
     }
 
-    fn apply_next_token(self, token: Token) -> CombinatoryTerm {
+    fn apply_next_token(&mut self, token: Token) {
         match token {
             Token::S => self.evaluate_s(),
             Token::K => self.evaluate_k(),
             Token::I => self.evaluate_i(),
-            Token::NestedTerm(inner_expr) => inner_expr.evaluate(),
+            Token::NestedTerm(mut inner_expr) => inner_expr.evaluate(),
         }
     }
 
-    fn evaluate_s(mut self) -> CombinatoryTerm {
+    fn evaluate_s(&mut self) {
         let num_tokens = self.tokens.len();
         if num_tokens < 3 {
             self.tokens.push(Token::S);
-            return self;
+            return;
         }
 
         let x = self.tokens.pop().unwrap();
@@ -61,11 +61,11 @@ impl CombinatoryTerm {
         self.evaluate()
     }
 
-    fn evaluate_k(mut self) -> CombinatoryTerm {
+    fn evaluate_k(&mut self) {
         let num_tokens = self.tokens.len();
         if num_tokens < 2 {
             self.tokens.push(Token::K);
-            return self;
+            return;
         }
         let arg = self.tokens.pop().unwrap();
         self.tokens.pop();
@@ -73,11 +73,11 @@ impl CombinatoryTerm {
         self.evaluate()
     }
 
-    fn evaluate_i(mut self) -> CombinatoryTerm {
+    fn evaluate_i(&mut self) {
         let num_tokens = self.tokens.len();
         if num_tokens < 1 {
             self.tokens.push(Token::I);
-            return self;
+            return;
         }
         self.evaluate()
     }
