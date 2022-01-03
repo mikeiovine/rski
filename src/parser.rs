@@ -1,6 +1,8 @@
-use crate::{Computation, Token};
+use crate::Token;
 use std::cell::RefCell;
 
+// Parses a combinator string into something that the
+// computation engine can use.
 pub struct Parser {
     token_seq: RefCell<Vec<char>>,
 }
@@ -22,7 +24,15 @@ impl Parser {
         }
     }
 
-    pub(super) fn parse(&self, until_closed_paren: bool) -> Result<Vec<Token>, String> {
+    // Parse the given token seq into a string. Note that
+    // the returned token sequence is backwards - this simplifies
+    // the implementation of the computation engine, since we can
+    // just use Vec<Token> and get the next term in O(1) time with pop().
+    pub(super) fn parse(&self) -> Result<Vec<Token>, String> {
+        self.parse_impl(/*until_closed_paren*/ false)
+    }
+
+    fn parse_impl(&self, until_closed_paren: bool) -> Result<Vec<Token>, String> {
         let mut tokens = vec![];
         loop {
             let cur_char = self.token_seq.borrow_mut().pop();
@@ -31,11 +41,8 @@ impl Parser {
                 Some('K') => tokens.push(Token::K),
                 Some('I') => tokens.push(Token::I),
                 Some('(') => {
-                    let subexpr = self.parse(true)?;
-                    tokens.push(Token::NestedTerm(Computation {
-                        tokens: subexpr,
-                        owner: std::ptr::null(),
-                    }));
+                    let subexpr = self.parse_impl(true)?;
+                    tokens.push(Token::make_nested(subexpr));
                 }
                 Some(')') => {
                     if !until_closed_paren {
@@ -53,7 +60,76 @@ impl Parser {
         } else {
             debug_assert!(self.token_seq.borrow().is_empty());
         }
-
         Ok(tokens.into_iter().rev().collect())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn test_parser(token_seq: &str, expected: &Vec<Token>) {
+        let parser = Parser::new(token_seq);
+        let actual = parser.parse().unwrap();
+        assert_eq!(actual, *expected);
+    }
+
+    fn test_parser_fails(token_seq: &str) {
+        let parser = Parser::new(token_seq);
+        match parser.parse() {
+            Ok(_) => panic!("Expected combinator {} to fail parsing", token_seq),
+            _ => (),
+        }
+    }
+
+    #[test]
+    fn test_parser_no_nested() {
+        let combinator = "SKSKI";
+        let expected = vec![Token::I, Token::K, Token::S, Token::K, Token::S];
+        test_parser(combinator, &expected);
+    }
+
+    #[test]
+    fn test_parser_nested() {
+        let combinator = "S(S(I(SK)S))(SK)";
+        let expected = vec![
+            Token::make_nested(vec![Token::K, Token::S]),
+            Token::make_nested(vec![
+                Token::make_nested(vec![
+                    Token::S,
+                    Token::make_nested(vec![Token::K, Token::S]),
+                    Token::I,
+                ]),
+                Token::S,
+            ]),
+            Token::S,
+        ];
+        test_parser(combinator, &expected);
+    }
+
+    #[test]
+    fn test_parser_lowercasee() {
+        let combinator = "s(ks)i";
+        let expected = vec![
+            Token::I,
+            Token::make_nested(vec![Token::S, Token::K]),
+            Token::S,
+        ];
+        test_parser(combinator, &expected);
+    }
+
+    #[test]
+    fn test_parser_fails_unrecognized_character() {
+        test_parser_fails("s(sk)abc");
+    }
+
+    #[test]
+    fn test_parser_fails_too_many_open_parens() {
+        test_parser_fails("(((SKS");
+    }
+
+    #[test]
+    fn test_parser_fails_not_enough_closed_parens() {
+        test_parser_fails("((S)");
     }
 }

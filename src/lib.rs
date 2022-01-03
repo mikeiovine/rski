@@ -3,7 +3,7 @@ use parser::Parser;
 use std::cell::Cell;
 use std::fmt;
 
-#[derive(Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 enum Token {
     S,
     K,
@@ -11,7 +11,13 @@ enum Token {
     NestedTerm(Computation),
 }
 
-#[derive(Clone)]
+impl Token {
+    pub fn make_nested(tokens: Vec<Token>) -> Token {
+        Token::NestedTerm(Computation::from_tokens(tokens))
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Computation {
     // For efficiency reasons, tokens are stored in reverse order
     tokens: Vec<Token>,
@@ -114,11 +120,18 @@ impl Observer for Printer {
 impl Computation {
     pub fn new(token_seq: &str) -> Result<Computation, String> {
         let parser = Parser::new(token_seq);
-        let tokens = parser.parse(false)?;
+        let tokens = parser.parse()?;
         Ok(Computation {
             tokens,
             owner: std::ptr::null(),
         })
+    }
+
+    fn from_tokens(tokens: Vec<Token>) -> Computation {
+        Computation {
+            tokens,
+            owner: std::ptr::null(),
+        }
     }
 
     pub fn set_owner(&mut self, term: *const CombinatoryTermImpl) {
