@@ -1,21 +1,7 @@
 mod parser;
-use parser::Parser;
+use parser::{Parser, Token};
 use std::cell::Cell;
 use std::fmt;
-
-#[derive(Eq, PartialEq, Debug, Clone)]
-enum Token {
-    S,
-    K,
-    I,
-    NestedTerm(Computation),
-}
-
-impl Token {
-    pub fn make_nested(tokens: Vec<Token>) -> Token {
-        Token::NestedTerm(Computation::from_tokens(tokens))
-    }
-}
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Computation {

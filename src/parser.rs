@@ -1,5 +1,19 @@
-use crate::Token;
+use super::Computation;
 use std::cell::RefCell;
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub enum Token {
+    S,
+    K,
+    I,
+    NestedTerm(Computation),
+}
+
+impl Token {
+    pub fn make_nested(tokens: Vec<Token>) -> Token {
+        Token::NestedTerm(Computation::from_tokens(tokens))
+    }
+}
 
 // Parses a combinator string into something that the
 // computation engine can use.
