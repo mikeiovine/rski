@@ -1,26 +1,138 @@
 mod parser;
 use parser::Parser;
+use std::cell::Cell;
 use std::fmt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 enum Token {
     S,
     K,
     I,
-    NestedTerm(CombinatoryTerm),
+    NestedTerm(Computation),
 }
 
-#[derive(Clone, Debug)]
-pub struct CombinatoryTerm {
+#[derive(Clone)]
+pub struct Computation {
     // For efficiency reasons, tokens are stored in reverse order
     tokens: Vec<Token>,
+    owner: *const CombinatoryTermImpl,
+}
+
+pub struct CombinatoryTermImpl {
+    observers: Vec<Box<dyn Observer>>,
+    computation: Computation,
+}
+
+impl CombinatoryTermImpl {
+    pub fn new(token_seq: &str) -> Result<CombinatoryTermImpl, String> {
+        let computation = Computation::new(token_seq)?;
+        Ok(CombinatoryTermImpl {
+            computation,
+            observers: vec![],
+        })
+    }
+
+    pub fn evaluate(&mut self) {
+        self.notify_observers(Signal::ComputationStart);
+        self.computation.evaluate();
+        self.notify_observers(Signal::ComputationEnd);
+    }
+
+    pub fn attach(&mut self, observer: Box<dyn Observer>) {
+        self.observers.push(observer);
+    }
+
+    pub fn notify_observers(&self, signal: Signal) {
+        for observer in &self.observers {
+            observer.notify(&self, signal);
+        }
+    }
+
+    pub fn set_owner(&mut self) {
+        self.computation.set_owner(self);
+    }
+}
+
+pub struct CombinatoryTerm {
+    term: Box<CombinatoryTermImpl>,
 }
 
 impl CombinatoryTerm {
     pub fn new(token_seq: &str) -> Result<CombinatoryTerm, String> {
+        let mut term = Box::new(CombinatoryTermImpl::new(token_seq)?);
+        term.set_owner();
+        Ok(CombinatoryTerm { term })
+    }
+
+    pub fn evaluate(&mut self) {
+        self.term.evaluate();
+    }
+
+    pub fn attach(&mut self, observer: Box<dyn Observer>) {
+        self.term.attach(observer);
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum Signal {
+    ComputationStart,
+    ComputationStep,
+    ComputationEnd,
+}
+
+pub trait Observer {
+    fn notify(&self, term: &CombinatoryTermImpl, signal: Signal);
+}
+
+pub struct Printer {
+    num_steps: Cell<u32>,
+}
+
+impl Printer {
+    pub fn new() -> Printer {
+        Printer {
+            num_steps: Cell::new(0),
+        }
+    }
+}
+
+impl Observer for Printer {
+    fn notify(&self, term: &CombinatoryTermImpl, signal: Signal) {
+        match signal {
+            Signal::ComputationStart => println!("starting combinator: {}", term),
+            Signal::ComputationEnd => {
+                println!("derived {} after {} steps", term, self.num_steps.get())
+            }
+            Signal::ComputationStep => {
+                println!("{}", term);
+                self.num_steps.set(self.num_steps.get() + 1);
+            }
+        }
+    }
+}
+
+impl Computation {
+    pub fn new(token_seq: &str) -> Result<Computation, String> {
         let parser = Parser::new(token_seq);
         let tokens = parser.parse(false)?;
-        Ok(CombinatoryTerm { tokens })
+        Ok(Computation {
+            tokens,
+            owner: std::ptr::null(),
+        })
+    }
+
+    pub fn set_owner(&mut self, term: *const CombinatoryTermImpl) {
+        self.owner = term;
+        for token in &mut self.tokens {
+            match token {
+                Token::NestedTerm(computation) => computation.set_owner(term),
+                _ => (),
+            }
+        }
+    }
+
+    pub fn notify_step(&self) {
+        unsafe { (*self.owner).notify_observers(Signal::ComputationStep) };
     }
 
     pub fn evaluate(&mut self) {
@@ -67,13 +179,15 @@ impl CombinatoryTerm {
         let y = self.get_next_token();
         let z = self.get_next_token();
 
-        let inner_term = CombinatoryTerm {
+        let inner_term = Computation {
             tokens: vec![z.clone(), y],
+            owner: self.owner,
         };
 
         self.tokens.push(Token::NestedTerm(inner_term));
         self.tokens.push(z);
         self.tokens.push(x);
+        self.notify_step();
         true
     }
 
@@ -86,6 +200,7 @@ impl CombinatoryTerm {
         let arg = self.tokens.pop().unwrap();
         self.tokens.pop();
         self.tokens.push(arg);
+        self.notify_step();
         true
     }
 
@@ -95,11 +210,12 @@ impl CombinatoryTerm {
             self.tokens.push(Token::I);
             return false;
         }
+        self.notify_step();
         true
     }
 }
 
-impl fmt::Display for CombinatoryTerm {
+impl fmt::Display for Computation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.tokens
             .iter()
@@ -111,5 +227,17 @@ impl fmt::Display for CombinatoryTerm {
                 Token::NestedTerm(term) => write!(f, "({})", term),
             })
             .collect::<Result<_, _>>()
+    }
+}
+
+impl fmt::Display for CombinatoryTermImpl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.computation)
+    }
+}
+
+impl fmt::Display for CombinatoryTerm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.term)
     }
 }

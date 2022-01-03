@@ -1,4 +1,4 @@
-use crate::{CombinatoryTerm, Token};
+use crate::{Computation, Token};
 use std::cell::RefCell;
 
 pub struct Parser {
@@ -32,7 +32,10 @@ impl Parser {
                 Some('I') => tokens.push(Token::I),
                 Some('(') => {
                     let subexpr = self.parse(true)?;
-                    tokens.push(Token::NestedTerm(CombinatoryTerm { tokens: subexpr }));
+                    tokens.push(Token::NestedTerm(Computation {
+                        tokens: subexpr,
+                        owner: std::ptr::null(),
+                    }));
                 }
                 Some(')') => {
                     if !until_closed_paren {
