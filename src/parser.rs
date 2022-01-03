@@ -3,7 +3,6 @@ use std::cell::RefCell;
 
 pub struct Parser {
     token_seq: RefCell<Vec<char>>,
-    verbose: bool,
 }
 
 impl Parser {
@@ -16,11 +15,10 @@ impl Parser {
         Err("Mismatched parentheses in expression".to_string())
     }
 
-    pub fn new(token_seq: &str, verbose: bool) -> Parser {
+    pub fn new(token_seq: &str) -> Parser {
         let token_seq = Parser::prepare_string_for_parsing(token_seq);
         Parser {
             token_seq: RefCell::new(token_seq),
-            verbose,
         }
     }
 
@@ -34,10 +32,7 @@ impl Parser {
                 Some('I') => tokens.push(Token::I),
                 Some('(') => {
                     let subexpr = self.parse(true)?;
-                    tokens.push(Token::NestedTerm(CombinatoryTerm {
-                        tokens: subexpr,
-                        verbose: self.verbose,
-                    }));
+                    tokens.push(Token::NestedTerm(CombinatoryTerm { tokens: subexpr }));
                 }
                 Some(')') => {
                     if !until_closed_paren {

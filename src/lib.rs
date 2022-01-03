@@ -14,79 +14,88 @@ enum Token {
 pub struct CombinatoryTerm {
     // For efficiency reasons, tokens are stored in reverse order
     tokens: Vec<Token>,
-    verbose: bool,
 }
 
 impl CombinatoryTerm {
-    pub fn new(token_seq: &str, verbose: bool) -> Result<CombinatoryTerm, String> {
-        let parser = Parser::new(token_seq, verbose);
+    pub fn new(token_seq: &str) -> Result<CombinatoryTerm, String> {
+        let parser = Parser::new(token_seq);
         let tokens = parser.parse(false)?;
-        Ok(CombinatoryTerm { tokens, verbose })
+        Ok(CombinatoryTerm { tokens })
     }
 
     pub fn evaluate(&mut self) {
-        if self.verbose {
-            println!("{}", self);
+        if self.tokens.is_empty() {
+            return;
         }
-        if !self.tokens.is_empty() {
-            let token = self.tokens.pop().unwrap();
-            self.apply_next_token(token);
+
+        let mut token = self.get_next_token();
+        while self.apply_next_token(token) {
+            token = self.get_next_token();
+        }
+
+        for token in &mut self.tokens {
+            if let Token::NestedTerm(term) = token {
+                term.evaluate();
+            }
         }
     }
 
-    fn apply_next_token(&mut self, token: Token) {
+    fn apply_next_token(&mut self, token: Token) -> bool {
         match token {
             Token::S => self.evaluate_s(),
             Token::K => self.evaluate_k(),
             Token::I => self.evaluate_i(),
             Token::NestedTerm(mut inner_expr) => {
                 self.tokens.append(&mut inner_expr.tokens);
-                self.evaluate();
+                true
             }
         }
     }
 
-    fn evaluate_s(&mut self) {
+    fn get_next_token(&mut self) -> Token {
+        self.tokens.pop().unwrap()
+    }
+
+    fn evaluate_s(&mut self) -> bool {
         let num_tokens = self.tokens.len();
         if num_tokens < 3 {
             self.tokens.push(Token::S);
-            return;
+            return false;
         }
 
-        let x = self.tokens.pop().unwrap();
-        let y = self.tokens.pop().unwrap();
-        let z = self.tokens.pop().unwrap();
+        let x = self.get_next_token();
+        let y = self.get_next_token();
+        let z = self.get_next_token();
 
         let inner_term = CombinatoryTerm {
             tokens: vec![z.clone(), y],
-            verbose: self.verbose,
         };
 
         self.tokens.push(Token::NestedTerm(inner_term));
         self.tokens.push(z);
         self.tokens.push(x);
-        self.evaluate()
+        true
     }
 
-    fn evaluate_k(&mut self) {
+    fn evaluate_k(&mut self) -> bool {
         let num_tokens = self.tokens.len();
         if num_tokens < 2 {
             self.tokens.push(Token::K);
-            return;
+            return false;
         }
         let arg = self.tokens.pop().unwrap();
         self.tokens.pop();
         self.tokens.push(arg);
-        self.evaluate()
+        true
     }
 
-    fn evaluate_i(&mut self) {
+    fn evaluate_i(&mut self) -> bool {
         let num_tokens = self.tokens.len();
         if num_tokens < 1 {
             self.tokens.push(Token::I);
-            return;
+            return false;
         }
-        self.evaluate()
+        true
     }
 }
 
