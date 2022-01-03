@@ -1,4 +1,4 @@
-use super::Computation;
+use super::engine::Computation;
 use std::cell::RefCell;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
