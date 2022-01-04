@@ -1,5 +1,5 @@
 mod engine;
-pub mod observer;
+mod observer;
 mod parser;
 
 use engine::CombinatoryTermImpl;
