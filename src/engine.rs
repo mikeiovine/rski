@@ -1,5 +1,5 @@
+use crate::observer::{Observer, Signal};
 use crate::parser::{Parser, Token};
-use crate::{Observer, Signal};
 use std::fmt;
 
 pub struct CombinatoryTermImpl {
