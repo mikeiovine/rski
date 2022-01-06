@@ -23,7 +23,7 @@ pub struct Parser {
 
 impl Parser {
     fn prepare_string_for_parsing(token_seq: &str) -> Vec<char> {
-        token_seq.to_uppercase().chars().rev().collect()
+        token_seq.trim_end().to_uppercase().chars().rev().collect()
     }
 
     fn make_mismatched_error<T>() -> Result<T, String> {

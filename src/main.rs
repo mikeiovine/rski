@@ -1,15 +1,20 @@
-use rski::{CombinatoryTerm, Printer};
+use rski::Config;
+use std::env;
+use std::process;
+
+fn show_usage() {
+    eprintln!("usage: rski [script]");
+}
 
 fn main() {
-    let mut c = CombinatoryTerm::new("S(S(KS)(S(KK)(S(KS)K)))(S(K(S(SKK)))K)SKS").unwrap();
-    c.attach(Box::new(Printer::new()));
-    c.evaluate();
+    let config = Config::parse(env::args()).unwrap_or_else(|err| {
+        eprintln!("Config parsing failed with error:\n{}", err);
+        show_usage();
+        process::exit(1);
+    });
 
-    let mut c = CombinatoryTerm::new("S(S(SS))SSS").unwrap();
-    c.attach(Box::new(Printer::new()));
-    c.evaluate();
-
-    let mut c = CombinatoryTerm::new("((((S))))").unwrap();
-    c.attach(Box::new(Printer::new()));
-    c.evaluate();
+    if let Err(err) = config.run() {
+        eprintln!("Run failure with error:\n{}", err);
+        process::exit(1);
+    }
 }
