@@ -8,10 +8,11 @@ pub enum Signal {
     ComputationEnd,
 }
 
-pub trait Observer {
+pub trait Observer: std::fmt::Debug {
     fn notify(&self, term: &CombinatoryTermImpl, signal: Signal);
 }
 
+#[derive(Debug)]
 pub struct Printer {
     num_steps: Cell<u32>,
 }

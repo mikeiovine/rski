@@ -1,7 +1,9 @@
 use crate::observer::{Observer, Signal};
 use crate::parser::{Parser, Token};
+use std::cmp::PartialEq;
 use std::fmt;
 
+#[derive(Debug)]
 pub struct CombinatoryTermImpl {
     observers: Vec<Box<dyn Observer>>,
     computation: Computation,
@@ -72,7 +74,9 @@ impl Computation {
     }
 
     pub fn notify_step(&self) {
-        unsafe { (*self.owner).notify_observers(Signal::ComputationStep) };
+        if self.owner != std::ptr::null() {
+            unsafe { (*self.owner).notify_observers(Signal::ComputationStep) };
+        }
     }
 
     pub fn evaluate(&mut self) {
@@ -173,5 +177,90 @@ impl fmt::Display for Computation {
 impl fmt::Display for CombinatoryTermImpl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.computation)
+    }
+}
+
+impl PartialEq for CombinatoryTermImpl {
+    fn eq(&self, other: &CombinatoryTermImpl) -> bool {
+        self.computation == other.computation
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_engine(combinator: &str, expected: &str) {
+        let mut actual = CombinatoryTermImpl::new(combinator).unwrap();
+        actual.evaluate();
+        let expected = CombinatoryTermImpl::new(expected).unwrap();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_s_combinator() {
+        let combinator = "SKSS";
+        let expected = "S";
+        test_engine(combinator, expected);
+    }
+
+    #[test]
+    fn test_k_combinator() {
+        let combinator = "KSS";
+        let expected = "S";
+        test_engine(combinator, expected);
+    }
+
+    #[test]
+    fn test_i_combinator() {
+        let combinator = "IK";
+        let expected = "K";
+        test_engine(combinator, expected);
+    }
+
+    #[test]
+    fn test_basic_evaluation() {
+        let combinator = "S(KSS)SK";
+        let expected = "SK(SK)";
+        test_engine(combinator, expected);
+    }
+
+    #[test]
+    fn test_addition() {
+        fn enclose(s: String) -> String {
+            "(".to_string() + &s + &")".to_string()
+        }
+
+        fn generate_number_repr(n: u32) -> String {
+            let mut res = "S(K)".to_string();
+            let number_gen = "S(S(K(S))(K))".to_string();
+            for _ in 0..n {
+                res = number_gen.clone() + &enclose(res);
+            }
+            res
+        }
+
+        fn generate_expected_result(n: u32) -> String {
+            let mut res = "K".to_string();
+            for _ in 0..n {
+                res = "S".to_string() + &enclose(res);
+            }
+            res
+        }
+
+        fn test_numbers(a: u32, b: u32) {
+            let expected = generate_expected_result(a + b);
+
+            let a = generate_number_repr(a);
+            let b = generate_number_repr(b);
+            let plus = "S(K(S))(S(K(S(K(S))))(S(K(K))))";
+
+            let combinator = plus.to_string() + &enclose(a) + &enclose(b) + "(S)(K)";
+            test_engine(&combinator, &expected);
+        }
+
+        test_numbers(1, 1);
+        test_numbers(3, 2);
+        test_numbers(10, 5);
     }
 }
